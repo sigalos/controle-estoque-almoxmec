@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import {
   getAuth,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword, // Adicionado para criar usuários
+  createUserWithEmailAndPassword,
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -16,7 +16,8 @@ import {
   doc,
   getDoc,
   updateDoc,
-  setDoc // Adicionado para salvar perfil do usuário
+  setDoc,
+  deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // 🔥 CONFIG (MANTÉM O SEU)
@@ -34,6 +35,12 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// 🔥 VARIAVEIS GLOBAIS DE CONTROLE
+let ehAdminGlobal = false;
+let todasAsPecas = []; // Armazena a lista vinda do banco para busca local ultra-rápida
+const TOKEN_COMUM = "mec123";   
+const TOKEN_ADMIN = "admin123"; 
+
 // 🔥 ELEMENTOS DE AUTENTICAÇÃO E ABAS
 const loginTela = document.getElementById("loginTela");
 const sistemaTela = document.getElementById("sistemaTela");
@@ -48,18 +55,48 @@ const formLogin = document.getElementById("formLogin");
 const formCadastro = document.getElementById("formCadastro");
 const btnCadastrar = document.getElementById("btnCadastrar");
 
+// ELEMENTOS DOS OLHOS DE VISUALIZAR SENHA
+const senhaInput = document.getElementById("senha");
+const cadSenhaInput = document.getElementById("cadSenha");
+const toggleSenhaLogin = document.getElementById("toggleSenhaLogin");
+const toggleSenhaCad = document.getElementById("toggleSenhaCad");
+
 // ELEMENTOS DO SISTEMA
 const nomePeca = document.getElementById("nomePeca");
 const quantidadePeca = document.getElementById("quantidadePeca");
+const localPeca = document.getElementById("localPeca");
 const fotoPeca = document.getElementById("fotoPeca");
 const btnSalvarPeca = document.getElementById("btnSalvarPeca");
 const listaPecas = document.getElementById("listaPecas");
+const buscaPeca = document.getElementById("buscaPeca"); // Novo
 const historicoLista = document.getElementById("historicoLista");
 const historicoArea = document.getElementById("historicoArea");
 const areaAdmin = document.getElementById("areaAdmin");
 const btnToggleHistorico = document.getElementById("btnToggleHistorico");
 const btnFiltrar = document.getElementById("btnFiltrar");
 const filtroUsuario = document.getElementById("filtroUsuario");
+
+// 👁️ LOGICA PARA MOSTRAR/ESCONDER A SENHA (LOGIN)
+toggleSenhaLogin.onclick = () => {
+  if (senhaInput.type === "password") {
+    senhaInput.type = "text";
+    toggleSenhaLogin.innerText = "🙈";
+  } else {
+    senhaInput.type = "password";
+    toggleSenhaLogin.innerText = "👁️";
+  }
+};
+
+// 👁️ LOGICA PARA MOSTRAR/ESCONDER A SENHA (CADASTRO)
+toggleSenhaCad.onclick = () => {
+  if (cadSenhaInput.type === "password") {
+    cadSenhaInput.type = "text";
+    toggleSenhaCad.innerText = "🙈";
+  } else {
+    cadSenhaInput.type = "password";
+    toggleSenhaCad.innerText = "👁️";
+  }
+};
 
 // 🔄 CONTROLADOR DE ABAS (LOGIN / CADASTRO)
 tabLogin.onclick = () => {
@@ -81,7 +118,7 @@ tabCadastro.onclick = () => {
 // 🔥 AÇÃO DE LOGIN
 btnLogin.onclick = async () => {
   const email = document.getElementById("email").value.trim();
-  const senha = document.getElementById("senha").value;
+  const senha = senhaInput.value;
 
   if (!email || !senha) return erro.innerText = "Preencha todos os campos.";
 
@@ -96,25 +133,38 @@ btnLogin.onclick = async () => {
 // 🔥 AÇÃO DE CADASTRO DE USUÁRIO
 btnCadastrar.onclick = async () => {
   const email = document.getElementById("cadEmail").value.trim();
-  const senha = document.getElementById("cadSenha").value;
+  const senha = cadSenhaInput.value;
+  const tokenDigitado = document.getElementById("cadToken").value.trim();
 
-  if (!email || !senha) return erro.innerText = "Preencha todos os campos.";
-  if (senha.length < 6) return erro.innerText = "A senha deve ter no mínimo 6 dígitos.";
+  if (!email || !senha || !tokenDigitado) {
+    return erro.innerText = "Preencha todos os campos obrigatórios.";
+  }
+  if (senha.length < 6) {
+    return erro.innerText = "A senha deve ter no mínimo 6 dígitos.";
+  }
+
+  let tipoUsuario = "";
+  if (tokenDigitado === TOKEN_ADMIN) {
+    tipoUsuario = "admin";
+  } else if (tokenDigitado === TOKEN_COMUM) {
+    tipoUsuario = "comum";
+  } else {
+    return erro.innerText = "Chave de Acesso incorreta. Solicite ao administrador.";
+  }
 
   try {
-    // 1. Cria a credencial no Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
     const user = userCredential.user;
 
-    // 2. Cria o documento do usuário no Firestore definido como padrão 'comum'
     await setDoc(doc(db, "usuarios", user.email), {
       email: user.email,
-      tipo: "comum" // Usuários novos começam como comum. Mude no Firebase para 'admin' se necessário.
+      tipo: tipoUsuario 
     });
 
     erro.style.color = "#22c55e";
-    erro.innerText = "Conta criada com sucesso! Entrando...";
+    erro.innerText = `Conta criada como [${tipoUsuario}]! Entrando...`;
   } catch (e) {
+    erro.style.color = "#ef4444";
     if (e.code === "auth/email-already-in-use") {
       erro.innerText = "Este e-mail já está cadastrado.";
     } else {
@@ -135,14 +185,15 @@ onAuthStateChanged(auth, async (user) => {
     sistemaTela.style.display = "block";
     usuarioLogado.innerText = user.email;
 
-    // VERIFICA PERFIL ADMIN
     const docRef = doc(db, "usuarios", user.email);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists() && docSnap.data().tipo === "admin") {
       areaAdmin.style.display = "block";
+      ehAdminGlobal = true;
     } else {
       areaAdmin.style.display = "none";
+      ehAdminGlobal = false;
     }
 
     carregarPecas();
@@ -150,11 +201,11 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     loginTela.style.display = "block";
     sistemaTela.style.display = "none";
-    // Limpa campos ao deslogar
     document.getElementById("email").value = "";
-    document.getElementById("senha").value = "";
+    senhaInput.value = "";
     document.getElementById("cadEmail").value = "";
-    document.getElementById("cadSenha").value = "";
+    cadSenhaInput.value = "";
+    document.getElementById("cadToken").value = "";
     erro.innerText = "";
     erro.style.color = "#ef4444";
   }
@@ -172,9 +223,12 @@ function converterBase64(file) {
 
 // 🔥 SALVAR PEÇA
 btnSalvarPeca.onclick = async () => {
-  const nome = nomePeca.value;
+  const nome = nomePeca.value.trim();
   const quantidade = Number(quantidadePeca.value);
+  const local = localPeca.value.trim() || "Não Informado";
   const file = fotoPeca.files[0];
+
+  if (!nome || !quantidade) return alert("Preencha o nome e a quantidade!");
 
   let imagemBase64 = "";
   if (file) imagemBase64 = await converterBase64(file);
@@ -182,35 +236,74 @@ btnSalvarPeca.onclick = async () => {
   await addDoc(collection(db, "pecas"), {
     nome,
     quantidade,
+    local,
     imagem: imagemBase64
   });
 
   nomePeca.value = "";
   quantidadePeca.value = "";
+  localPeca.value = "";
   fotoPeca.value = "";
   carregarPecas();
 };
 
-// 🔥 CARREGAR PEÇAS
+// 🔥 CARREGAR PEÇAS DO BANCO DE DADOS
 async function carregarPecas() {
-  listaPecas.innerHTML = "";
+  todasAsPecas = []; // Limpa o array antes de repovoar
   const querySnapshot = await getDocs(collection(db, "pecas"));
 
   querySnapshot.forEach((docItem) => {
-    const peca = docItem.data();
+    todasAsPecas.push({
+      id: docItem.id,
+      ...docItem.data()
+    });
+  });
+
+  // Mostra todas por padrão ao carregar a página
+  renderizarPecasNaTela(todasAsPecas);
+}
+
+// 🔍 FUNÇÃO AUXILIAR PARA EXIBIR AS PEÇAS JÁ FILTRADAS
+function renderizarPecasNaTela(listaFiltrada) {
+  listaPecas.innerHTML = "";
+
+  if(listaFiltrada.length === 0) {
+    listaPecas.innerHTML = "<p style='color:#94a3b8; text-align:center;'>Nenhuma peça encontrada.</p>";
+    return;
+  }
+
+  listaFiltrada.forEach((peca) => {
     const div = document.createElement("div");
     div.className = "peca";
+    const localizacao = peca.local || "Não informado";
 
     div.innerHTML = `
       <h4>${peca.nome}</h4>
       <p>Qtd: ${peca.quantidade}</p>
+      <div class="local-tag">📍 ${localizacao}</div>
+      <br>
       ${peca.imagem ? `<img src="${peca.imagem}" width="100" onclick="ampliarImagem('${peca.imagem}')">` : ""}
       <br>
-      <button class="btn-principal" style="margin-top:8px;" onclick="retirar('${docItem.id}', ${peca.quantidade}, '${peca.nome}')">Retirar</button>
+      <button class="btn-principal" style="margin-top:8px;" onclick="retirar('${peca.id}', ${peca.quantidade}, '${peca.nome}')">Retirar</button>
+      ${ehAdminGlobal ? `<button class="btn-excluir" onclick="excluirPeca('${peca.id}', '${peca.nome}')">❌ Excluir Peça</button>` : ""}
     `;
     listaPecas.appendChild(div);
   });
 }
+
+// 🔍 EVENTO DE DIGITAÇÃO PARA BUSCA EM TEMPO REAL (MECANISMO AUTO-DIGITE)
+buscaPeca.oninput = () => {
+  const termoDeBusca = buscaPeca.value.toLowerCase().trim();
+  
+  // Filtra o array comparando o termo digitado com o nome ou local da peça
+  const pecasFiltradas = todasAsPecas.filter(peca => {
+    const nomeContem = peca.nome.toLowerCase().includes(termoDeBusca);
+    const localContem = peca.local && peca.local.toLowerCase().includes(termoDeBusca);
+    return nomeContem || localContem;
+  });
+
+  renderizarPecasNaTela(pecasFiltradas);
+};
 
 // 🔥 ZOOM DA IMAGEM
 window.ampliarImagem = (src) => {
@@ -249,6 +342,32 @@ window.retirar = async (id, qtdAtual, nomePeca) => {
   carregarHistorico();
 };
 
+// 🔥 EXCLUIR PEÇA
+window.excluirPeca = async (id, nomePeca) => {
+  const confirmacao = confirm(`Tem certeza que deseja apagar permanentemente a peça [${nomePeca}]?`);
+  if (!confirmacao) return;
+
+  const usuarioAtual = auth.currentUser;
+
+  try {
+    await deleteDoc(doc(db, "pecas", id));
+
+    await addDoc(collection(db, "historico"), {
+      acao: "exclusao",
+      peca: nomePeca,
+      usuario: usuarioAtual ? usuarioAtual.email : "Admin",
+      data: new Date().toLocaleString(),
+      timestamp: new Date()
+    });
+
+    alert("Peça removida com sucesso!");
+    carregarPecas();
+    carregarHistorico();
+  } catch (erro) {
+    alert("Erro ao excluir peça.");
+  }
+};
+
 // 🔥 MOSTRAR / ESCONDER HISTÓRICO
 if (btnToggleHistorico) {
   btnToggleHistorico.onclick = () => {
@@ -263,24 +382,29 @@ async function carregarHistorico(emailFiltro = "") {
 
   const querySnapshot = await getDocs(collection(db, "historico"));
 
-  querySnapshot.forEach((docItem) => {
-    const item = docItem.data();
+  const itens = [];
+  querySnapshot.forEach(docItem => itens.push(docItem.data()));
+  itens.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+
+  itens.forEach((item) => {
     const emailUsuario = item.usuario || "Desconhecido"; 
     const nomeDaPeca = item.peca || "Não identificada";
+    const acaoTexto = item.acao === "exclusao" ? "EXCLUIU permanentemente" : "retirou";
 
     if (emailFiltro && !emailUsuario.toLowerCase().includes(emailFiltro.toLowerCase())) return; 
 
     const div = document.createElement("div");
     div.style.padding = "8px 0";
     div.style.borderBottom = "1px solid #334155";
-    div.style.color = "#cbd5e1";
-    div.innerText = `${emailUsuario} retirou [${nomeDaPeca}] em ${item.data}`;
+    div.style.color = item.acao === "exclusao" ? "#f87171" : "#cbd5e1";
+    
+    div.innerText = `${emailUsuario} ${acaoTexto} [${nomeDaPeca}] em ${item.data}`;
 
     historicoLista.appendChild(div);
   });
 }
 
-// 🔥 FILTRAR
+// 🔥 FILTRAR HISTÓRICO
 if (btnFiltrar) {
   btnFiltrar.onclick = () => {
     carregarHistorico(filtroUsuario.value.trim());
