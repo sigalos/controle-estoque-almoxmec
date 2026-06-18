@@ -10,7 +10,6 @@
 
 <div class="container" id="loginTela">
   <div class="auth-box">
-    
     <div class="auth-tabs">
       <button id="tabLogin" class="tab-btn active">Entrar</button>
       <button id="tabCadastro" class="tab-btn">Cadastrar</button>
@@ -19,26 +18,37 @@
     <div id="formLogin" class="auth-form">
       <h2>🔐 Acessar Conta</h2>
       <input type="email" id="email" placeholder="E-mail" autocomplete="email">
-      <input type="password" id="senha" placeholder="Senha">
+      
+      <div class="senha-container">
+        <input type="password" id="senha" placeholder="Senha">
+        <button type="button" class="btn-olho" id="toggleSenhaLogin">👁️</button>
+      </div>
+      
       <button id="btnLogin" class="btn-principal">Entrar</button>
     </div>
 
     <div id="formCadastro" class="auth-form" style="display: none;">
       <h2>📝 Criar Conta</h2>
       <input type="email" id="cadEmail" placeholder="Digite seu melhor e-mail" autocomplete="email">
-      <input type="password" id="cadSenha" placeholder="Crie uma senha (mín. 6 caracteres)">
+      
+      <div class="senha-container">
+        <input type="password" id="cadSenha" placeholder="Crie uma senha (mín. 6 caracteres)">
+        <button type="button" class="btn-olho" id="toggleSenhaCad">👁️</button>
+      </div>
+      
+      <input type="password" id="cadToken" placeholder="Chave de Acesso da Oficina">
       <button id="btnCadastrar" class="btn-principal">Criar Minha Conta</button>
     </div>
 
     <p id="erro" class="msg-feedback"></p>
   </div>
 </div>
-<!-- SISTEMA -->
+
 <div class="container" id="sistemaTela" style="display:none;">
 
   <header>
     <h2>📦 Controle de Estoque</h2>
-    <button id="btnLogout" class="sair">Sair</button>
+    <button id="btnLogout" class="sair" style="width: auto; padding: 8px 15px; margin: 0;">Sair</button>
   </header>
 
   <p id="usuarioLogado"></p>
@@ -49,36 +59,26 @@
     <input type="file" id="fotoPeca">
     <input type="text" id="nomePeca" placeholder="Nome da peça">
     <input type="number" id="quantidadePeca" placeholder="Quantidade" min="1">
+    <input type="text" id="localPeca" placeholder="Local de Armazenamento (ex: Prateleira A1)">
 
-    <button id="btnSalvarPeca">Salvar peça</button>
-    <button id="btnToggleHistorico">📊 Ver Histórico</button>
+    <button id="btnSalvarPeca" class="btn-principal">Salvar peça</button>
+    <button id="btnToggleHistorico" style="background: #3b82f6;">📊 Ver Histórico</button>
   </div>
 
   <hr>
 
   <h3>📋 Lista de peças</h3>
+  <div class="busca-container">
+    <input type="text" id="buscaPeca" placeholder="🔍 Procurar peça (ex: parafuso)..." autocomplete="off">
+  </div>
+  
   <div id="listaPecas"></div>
 
   <div id="historicoArea" style="display:none;">
     <hr>
     <h3>📊 Histórico</h3>
-
-    <input type="text" id="filtroUsuario" placeholder="Filtrar por email">
-    <button id="btnFiltrar">Filtrar</button>
-
-    <div id="historicoLista"></div>
-  </div>
-
-</div>
-
-  <!-- HISTÓRICO -->
-  <div id="historicoArea" style="display:none;">
-    <hr>
-    <h3>📊 Histórico</h3>
-
-    <input type="text" id="filtroUsuario" placeholder="Filtrar por email">
-    <button id="btnFiltrar">Filtrar</button>
-
+    <input type="text" id="filtroUsuario" placeholder="Filtrar por e-mail">
+    <button id="btnFiltrar" style="background: #64748b;">Filtrar</button>
     <div id="historicoLista"></div>
   </div>
 
