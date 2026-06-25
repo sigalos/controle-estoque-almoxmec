@@ -279,13 +279,16 @@ function renderizarPecasNaTela(listaFiltrada) {
 
     div.innerHTML = `
       <h4>${peca.nome}</h4>
-      <p>Qtd: ${peca.quantidade}</p>
+      <div class="qtd-tag">Qtd: ${peca.quantidade}</div>
       <div class="local-tag">📍 ${localizacao}</div>
-      <br>
       ${peca.imagem ? `<img src="${peca.imagem}" width="100" onclick="ampliarImagem('${peca.imagem}')">` : ""}
-      <br>
-      <button class="btn-principal" style="margin-top:8px;" onclick="retirar('${peca.id}', ${peca.quantidade}, '${peca.nome}')">Retirar</button>
-      ${ehAdminGlobal ? `<button class="btn-excluir" onclick="excluirPeca('${peca.id}', '${peca.nome}')">❌ Excluir Peça</button>` : ""}
+      <button class="btn-principal" style="margin-top:12px;" onclick="retirar('${peca.id}', ${peca.quantidade}, '${peca.nome}')">Retirar</button>
+      ${ehAdminGlobal ? `
+        <div class="admin-actions">
+          <button class="btn-editar" onclick="alert('Funcionalidade de edição em desenvolvimento.')">✏️ Editar</button>
+          <button class="btn-excluir" onclick="excluirPeca('${peca.id}', '${peca.nome}')">❌ Excluir</button>
+        </div>
+      ` : ""}
     `;
     listaPecas.appendChild(div);
   });
