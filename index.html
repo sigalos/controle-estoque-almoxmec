@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Controle de Estoque</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Linha adicionada para o Aplicativo (PWA) -->
+  <link rel="manifest" href="manifest.json">
+  <!-- Linha para o ícone aparecer na aba do navegador do PC -->
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<div class="container" id="loginTela">
+  <div class="auth-box">
+    <div class="auth-tabs">
+      <button id="tabLogin" class="tab-btn active">Entrar</button>
+      <button id="tabCadastro" class="tab-btn">Cadastrar</button>
+    </div>
+
+    <div id="formLogin" class="auth-form">
+      <h2>🔐 Acessar Conta</h2>
+      <input type="email" id="email" placeholder="E-mail" autocomplete="email">
+      
+      <div class="senha-container">
+        <input type="password" id="senha" placeholder="Senha">
+        <button type="button" class="btn-olho" id="toggleSenhaLogin">👁️</button>
+      </div>
+      
+      <button id="btnLogin" class="btn-principal">Entrar</button>
+    </div>
+
+    <div id="formCadastro" class="auth-form" style="display: none;">
+      <h2>📝 Criar Conta</h2>
+      <input type="email" id="cadEmail" placeholder="Digite seu melhor e-mail" autocomplete="email">
+      
+      <div class="senha-container">
+        <input type="password" id="cadSenha" placeholder="Crie uma senha (mín. 6 caracteres)">
+        <button type="button" class="btn-olho" id="toggleSenhaCad">👁️</button>
+      </div>
+      
+      <input type="password" id="cadToken" placeholder="Chave de Acesso da Oficina">
+      <button id="btnCadastrar" class="btn-principal">Criar Minha Conta</button>
+    </div>
+
+    <p id="erro" class="msg-feedback"></p>
+  </div>
+</div>
+
+<div class="container" id="sistemaTela" style="display:none;">
+
+  <header>
+    <h2>📦 Controle de Estoque</h2>
+    <button id="btnLogout" class="sair" style="width: auto; padding: 8px 15px; margin: 0;">Sair</button>
+  </header>
+
+  <p id="usuarioLogado"></p>
+
+  <div id="areaAdmin" style="display:none;">
+    <hr>
+    <h3>👑 Área Admin</h3>
+    <input type="file" id="fotoPeca">
+    <input type="text" id="nomePeca" placeholder="Nome da peça">
+    <input type="number" id="quantidadePeca" placeholder="Quantidade" min="1">
+    <input type="text" id="localPeca" placeholder="Local de Armazenamento (ex: Prateleira A1)">
+
+    <button id="btnSalvarPeca" class="btn-principal">Salvar peça</button>
+    <button id="btnToggleHistorico" style="background: #3b82f6;">📊 Ver Histórico</button>
+  </div>
+
+  <hr>
+
+  <h3>📋 Lista de peças</h3>
+  <div class="busca-container">
+    <input type="text" id="buscaPeca" placeholder="🔍 Procurar peça (ex: parafuso)..." autocomplete="off">
+  </div>
+  
+  <div id="listaPecas"></div>
+
+  <div id="historicoArea" style="display:none;">
+    <hr>
+    <h3>📊 Histórico</h3>
+    <input type="text" id="filtroUsuario" placeholder="Filtrar por e-mail">
+    <button id="btnFiltrar" style="background: #64748b;">Filtrar</button>
+    <div id="historicoLista"></div>
+  </div>
+
+</div>
+
+<div id="imagemModal" class="modal" onclick="fecharModal()">
+  <span class="fechar-modal">&times;</span>
+  <img class="modal-conteudo" id="imagemAmpliada">
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+<script type="module" src="app.js"></script>
+
+</body>
+</html>
