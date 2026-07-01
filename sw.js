@@ -33,16 +33,25 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Resposta às requisições
+// Resposta às requisições (Network First)
 self.addEventListener('fetch', (e) => {
-  // Ignora requisições do Firebase/Firestore para não quebrar o banco em tempo real
+  // Ignora requisições do Firebase/Firestore
   if (e.request.url.includes('firestore.googleapis.com') || e.request.url.includes('firebasejs')) {
     return;
   }
   
   e.respondWith(
-    caches.match(e.request).then((cachedResponse) => {
-      return cachedResponse || fetch(e.request);
-    })
+    fetch(e.request)
+      .then((respostaRede) => {
+        // Se a internet estiver funcionando, atualiza o cache com o arquivo mais novo
+        return caches.open(CACHE_NAME).then((cache) => {
+          cache.put(e.request, respostaRede.clone());
+          return respostaRede;
+        });
+      })
+      .catch(() => {
+        // Se estiver offline ou a rede falhar, puxa do cache
+        return caches.match(e.request);
+      })
   );
 });
