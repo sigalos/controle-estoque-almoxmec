@@ -456,12 +456,11 @@ if (btnFiltrar) {
     carregarHistorico(filtroUsuario.value.trim());
   };
 }
-
-// 📦 REGISTRO DO SERVICE WORKER (PWA)
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('Service Worker registrado com sucesso!', reg))
-      .catch(err => console.error('Erro ao registrar Service Worker:', err));
-  });
-}
+// 📦 REGISTRO DO SERVICE WORKER (REMOVIDO PARA EVITAR CACHE)
+// if ('serviceWorker' in navigator) {
+//   window.addEventListener('load', () => {
+//     navigator.serviceWorker.register('./sw.js')
+//       .then(reg => console.log('Service Worker registrado com sucesso!', reg))
+//       .catch(err => console.error('Erro ao registrar Service Worker:', err));
+//   });
+// }
