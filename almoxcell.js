@@ -242,33 +242,33 @@ window.editarPeca = (id) => {
 // 🔥 SALVAR OU ATUALIZAR PEÇA
 btnSalvarPeca.onclick = async () => {
   const nome = nomePeca.value.trim();
-  const quantidade = Number(quantidadePeca.value);
+  const quantitative = Number(quantidadePeca.value);
   const local = localPeca.value.trim() || "Não Informado";
   const file = fotoPeca.files[0];
 
-  if (!nome || !quantidade) return alert("Preencha o nome e a quantidade!");
+  if (!nome || !quantitative) return alert("Preencha o nome e a quantidade!");
 
   let imagemBase64 = "";
   if (file) imagemBase64 = await converterBase64(file);
 
   if (idPecaSendoEditada) {
     try {
-      const dadosAtualizados = { nome, quantidade, local };
+      const dadosAtualizados = { nome, quantidade: quantitative, local };
       if (imagemBase64) dadosAtualizados.imagem = imagemBase64;
 
       await updateDoc(doc(db, "pecas", idPecaSendoEditada), dadosAtualizados);
-      alert("Peça atualizada com sucesso!");
+      alert("Peça updated com sucesso!");
       
       idPecaSendoEditada = null;
       btnSalvarPeca.innerText = "Salvar peça";
-      btnSalvarPeca.style.background = "#f59e0b";
+      btnSalvarPeca.style.background = ""; 
     } catch (e) {
       alert("Erro ao atualizar a peça.");
     }
   } else {
     await addDoc(collection(db, "pecas"), {
       nome,
-      quantidade,
+      quantidade: quantitative,
       local,
       imagem: imagemBase64
     });
@@ -297,7 +297,7 @@ async function carregarPecas() {
   renderizarPecasNaTela(todasAsPecas);
 }
 
-// 🔍 FUNÇÃO AUXILIAR PARA EXIBIR AS PEÇAS JÁ FILTRADAS
+// 🔍 EXIBIR AS PEÇAS NA TELA
 function renderizarPecasNaTela(listaFiltrada) {
   listaPecas.innerHTML = "";
 
@@ -315,12 +315,12 @@ function renderizarPecasNaTela(listaFiltrada) {
       <h4>${peca.nome}</h4>
       <div class="qtd-tag">Qtd: ${peca.quantidade}</div>
       <div class="local-tag">📍 ${localizacao}</div>
-      ${peca.imagem ? `<img src="${peca.imagem}" width="100" onclick="ampliarImagem('${peca.imagem}')">` : ""}
-      <button class="btn-principal" style="margin-top:12px;" onclick="retirar('${peca.id}', ${peca.quantidade}, '${peca.nome}')">Retirar</button>
+      ${peca.imagem ? `<img src="${peca.imagem}" width="100" onclick="window.ampliarImagem('${peca.imagem}')">` : ""}
+      <button class="btn-principal" style="margin-top:12px;" onclick="window.retirar('${peca.id}', ${peca.quantidade}, '${peca.nome}')">Retirar</button>
       ${ehAdminGlobal ? `
         <div class="admin-actions">
-          <button class="btn-editar" onclick="editarPeca('${peca.id}')">✏️ Editar</button>
-          <button class="btn-excluir" onclick="excluirPeca('${peca.id}', '${peca.nome}')">❌ Excluir</button>
+          <button class="btn-editar" onclick="window.editarPeca('${peca.id}')">✏️ Editar</button>
+          <button class="btn-excluir" onclick="window.excluirPeca('${peca.id}', '${peca.nome}')">❌ Excluir</button>
         </div>
       ` : ""}
     `;
