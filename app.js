@@ -20,7 +20,7 @@ import {
   deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// 🔥 CONFIG (MANTÉM O SEU)
+// 🔥 CONFIG 
 const firebaseConfig = {
   apiKey: "AIzaSyBQGoNZaDvXuGwaIfaAmvZ2DHCID3MMaAA",
   authDomain: "almoxmec-cb491.firebaseapp.com",
@@ -37,8 +37,8 @@ const db = getFirestore(app);
 
 // 🔥 VARIAVEIS GLOBAIS DE CONTROLE
 let ehAdminGlobal = false;
-let todasAsPecas = []; // Armazena a lista vinda do banco para busca local ultra-rápida
-let idPecaSendoEditada = null; // Controla se estamos salvando uma peça nova ou editando uma existente
+let todasAsPecas = []; 
+let idPecaSendoEditada = null; 
 const TOKEN_COMUM = "mec123";
 const TOKEN_ADMIN = "admin123";
 
@@ -69,7 +69,7 @@ const localPeca = document.getElementById("localPeca");
 const fotoPeca = document.getElementById("fotoPeca");
 const btnSalvarPeca = document.getElementById("btnSalvarPeca");
 const listaPecas = document.getElementById("listaPecas");
-const buscaPeca = document.getElementById("buscaPeca"); // Novo
+const buscaPeca = document.getElementById("buscaPeca"); 
 const historicoLista = document.getElementById("historicoLista");
 const historicoArea = document.getElementById("historicoArea");
 const areaAdmin = document.getElementById("areaAdmin");
@@ -224,21 +224,17 @@ function converterBase64(file) {
 
 // 🔥 SELEÇÃO PARA MODO DE EDIÇÃO
 window.editarPeca = (id) => {
-  // Busca os dados completos da peça no array já carregado
   const pecaSelecionada = todasAsPecas.find(p => p.id === id);
   if (!pecaSelecionada) return;
 
   idPecaSendoEditada = pecaSelecionada.id; 
   
-  // Preenche os campos do painel Admin
   nomePeca.value = pecaSelecionada.nome;
   quantidadePeca.value = pecaSelecionada.quantidade;
   localPeca.value = pecaSelecionada.local === "Não Informado" ? "" : pecaSelecionada.local;
   
-  // Rola até o formulário de edição suavemente
   areaAdmin.scrollIntoView({ behavior: 'smooth' });
   
-  // Modifica a identidade visual do botão principal
   btnSalvarPeca.innerText = "🔄 Atualizar Peça";
   btnSalvarPeca.style.background = "#22c55e"; 
 };
@@ -256,7 +252,6 @@ btnSalvarPeca.onclick = async () => {
   if (file) imagemBase64 = await converterBase64(file);
 
   if (idPecaSendoEditada) {
-    // Modo Edição: Atualizar registro existente
     try {
       const dadosAtualizados = { nome, quantidade, local };
       if (imagemBase64) dadosAtualizados.imagem = imagemBase64;
@@ -264,7 +259,6 @@ btnSalvarPeca.onclick = async () => {
       await updateDoc(doc(db, "pecas", idPecaSendoEditada), dadosAtualizados);
       alert("Peça atualizada com sucesso!");
       
-      // Restaura o botão ao estado padrão
       idPecaSendoEditada = null;
       btnSalvarPeca.innerText = "Salvar peça";
       btnSalvarPeca.style.background = "#f59e0b";
@@ -272,7 +266,6 @@ btnSalvarPeca.onclick = async () => {
       alert("Erro ao atualizar a peça.");
     }
   } else {
-    // Modo Padrão: Adicionar nova peça
     await addDoc(collection(db, "pecas"), {
       nome,
       quantidade,
@@ -282,7 +275,6 @@ btnSalvarPeca.onclick = async () => {
     alert("Nova peça adicionada com sucesso!");
   }
 
-  // Reseta os campos do formulário
   nomePeca.value = "";
   quantidadePeca.value = "";
   localPeca.value = "";
@@ -292,7 +284,7 @@ btnSalvarPeca.onclick = async () => {
 
 // 🔥 CARREGAR PEÇAS DO BANCO DE DADOS
 async function carregarPecas() {
-  todasAsPecas = []; // Limpa o array antes de repovoar
+  todasAsPecas = []; 
   const querySnapshot = await getDocs(collection(db, "pecas"));
 
   querySnapshot.forEach((docItem) => {
@@ -302,7 +294,6 @@ async function carregarPecas() {
     });
   });
 
-  // Mostra todas por padrão ao carregar a página
   renderizarPecasNaTela(todasAsPecas);
 }
 
@@ -337,11 +328,10 @@ function renderizarPecasNaTela(listaFiltrada) {
   });
 }
 
-// 🔍 EVENTO DE DIGITAÇÃO PARA BUSCA EM TEMPO REAL (MECANISMO AUTO-DIGITE)
+// 🔍 EVENTO DE DIGITAÇÃO PARA BUSCA EM TEMPO REAL
 buscaPeca.oninput = () => {
   const termoDeBusca = buscaPeca.value.toLowerCase().trim();
   
-  // Filtra o array comparando o termo digitado com o nome ou local da peça
   const pecasFiltradas = todasAsPecas.filter(peca => {
     const nomeContem = peca.nome.toLowerCase().includes(termoDeBusca);
     const localContem = peca.local && peca.local.toLowerCase().includes(termoDeBusca);
@@ -455,13 +445,4 @@ if (btnFiltrar) {
   btnFiltrar.onclick = () => {
     carregarHistorico(filtroUsuario.value.trim());
   };
-}
-
-// 📦 REGISTRO DO SERVICE WORKER (PWA)
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('Service Worker registrado com sucesso!', reg))
-      .catch(err => console.error('Erro ao registrar Service Worker:', err));
-  });
 }
