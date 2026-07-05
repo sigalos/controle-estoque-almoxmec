@@ -20,6 +20,14 @@ import {
   deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+// 👇 NOVA IMPORTAÇÃO DO STORAGE 👇
+import {
+  getStorage, 
+  ref, 
+  uploadBytes, 
+  getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
 // 🔥 CONFIG 
 const firebaseConfig = {
   apiKey: "AIzaSyBQGoNZaDvXuGwaIfaAmvZ2DHCID3MMaAA",
@@ -34,6 +42,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app); // 👇 INICIALIZAÇÃO DO STORAGE
 
 // 🔥 VARIAVEIS GLOBAIS DE CONTROLE
 let ehAdminGlobal = false;
@@ -212,16 +221,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// 🔥 CONVERTER IMAGEM PARA BASE64
-function converterBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-  });
-}
-
 // 🔥 SELEÇÃO PARA MODO DE EDIÇÃO
 window.editarPeca = (id) => {
   const pecaSelecionada = todasAsPecas.find(p => p.id === id);
@@ -239,7 +238,7 @@ window.editarPeca = (id) => {
   btnSalvarPeca.style.background = "#22c55e"; 
 };
 
-// 🔥 SALVAR OU ATUALIZAR PEÇA
+// 🔥 SALVAR OU ATUALIZAR PEÇA (ATUALIZADO PARA STORAGE)
 btnSalvarPeca.onclick = async () => {
   const nome = nomePeca.value.trim();
   const quantitative = Number(quantidadePeca.value);
@@ -248,39 +247,56 @@ btnSalvarPeca.onclick = async () => {
 
   if (!nome || !quantitative) return alert("Preencha o nome e a quantidade!");
 
-  let imagemBase64 = "";
-  if (file) imagemBase64 = await converterBase64(file);
+  const textoOriginalBotao = btnSalvarPeca.innerText;
+  btnSalvarPeca.innerText = "⏳ Salvando...";
+  btnSalvarPeca.disabled = true;
 
-  if (idPecaSendoEditada) {
-    try {
+  try {
+    let urlImagem = "";
+    
+    // Upload da imagem para o Firebase Storage
+    if (file) {
+      const nomeArquivo = Date.now() + "_" + file.name;
+      const referenciaStorage = ref(storage, "pecas/" + nomeArquivo);
+      
+      await uploadBytes(referenciaStorage, file);
+      urlImagem = await getDownloadURL(referenciaStorage);
+    }
+
+    if (idPecaSendoEditada) {
       const dadosAtualizados = { nome, quantidade: quantitative, local };
-      if (imagemBase64) dadosAtualizados.imagem = imagemBase64;
+      if (urlImagem) dadosAtualizados.imagem = urlImagem;
 
       await updateDoc(doc(db, "pecas", idPecaSendoEditada), dadosAtualizados);
-      alert("Peça updated com sucesso!");
+      alert("Peça atualizada com sucesso!");
       
       idPecaSendoEditada = null;
-      btnSalvarPeca.innerText = "Salvar peça";
       btnSalvarPeca.style.background = ""; 
-    } catch (e) {
-      alert("Erro ao atualizar a peça.");
+    } else {
+      await addDoc(collection(db, "pecas"), {
+        nome,
+        quantidade: quantitative,
+        local,
+        imagem: urlImagem 
+      });
+      alert("Nova peça adicionada com sucesso!");
     }
-  } else {
-    await addDoc(collection(db, "pecas"), {
-      nome,
-      quantidade: quantitative,
-      local,
-      imagem: imagemBase64
-    });
-    alert("Nova peça adicionada com sucesso!");
-  }
 
-  nomePeca.value = "";
-  quantidadePeca.value = "";
-  localPeca.value = "";
-  fotoPeca.value = "";
-  carregarPecas();
+    nomePeca.value = "";
+    quantidadePeca.value = "";
+    localPeca.value = "";
+    fotoPeca.value = "";
+    carregarPecas();
+
+  } catch (erro) {
+    console.error(erro);
+    alert("Erro ao salvar a peça. Tente novamente.");
+  } finally {
+    btnSalvarPeca.innerText = idPecaSendoEditada ? "🔄 Atualizar Peça" : "Salvar peça";
+    btnSalvarPeca.disabled = false;
+  }
 };
+
 
 // 🔥 CARREGAR PEÇAS DO BANCO DE DADOS
 async function carregarPecas() {
@@ -341,7 +357,7 @@ buscaPeca.oninput = () => {
   renderizarPecasNaTela(pecasFiltradas);
 };
 
-// 🔥 ZOOM DA IMAGEM E CONTROLE DO BOTÃO VOLTAR
+// 🔥 ZOOM DA IMAGEM E CONTROLE DO BOTÃO VOLTAR (ATUALIZADO)
 window.ampliarImagem = (src) => {
   const modal = document.getElementById("imagemModal");
   const imagemAmpliada = document.getElementById("imagemAmpliada");
@@ -355,7 +371,6 @@ window.ampliarImagem = (src) => {
   }
 };
 
-// Quando o usuário fecha no "X" da tela
 window.fecharModal = () => {
   const modal = document.getElementById("imagemModal");
   
@@ -363,7 +378,6 @@ window.fecharModal = () => {
     modal.style.display = "none";
     
     // Se a URL ainda tiver o "#zoom", voltamos 1 passo no histórico 
-    // para limpar a "página falsa" e manter tudo organizado
     if (window.location.hash === "#zoom") {
       window.history.back();
     }
@@ -374,25 +388,22 @@ window.fecharModal = () => {
 window.addEventListener("popstate", (event) => {
   const modal = document.getElementById("imagemModal");
   
-  // Se o botão de voltar for pressionado e o modal estiver aberto, nós o fechamos
   if (modal && modal.style.display === "block") {
     modal.style.display = "none";
   }
 });
 
-// 🔥 RETIRAR PEÇA
+// 🔥 RETIRAR PEÇA (ATUALIZADO COM CONFIRMAÇÃO)
 window.retirar = async (id, qtdAtual, nomePeca) => {
   if (qtdAtual <= 0) return alert("Sem estoque");
 
   const usuarioAtual = auth.currentUser;
   if (!usuarioAtual) return alert("Você precisa estar logado.");
 
-  // 👇 MENSAGEM DE CONFIRMAÇÃO PARA TODOS OS USUÁRIOS 👇
   const confirmacao = confirm(`Deseja realmente retirar 1 unidade da peça [${nomePeca}]?`);
   if (!confirmacao) {
-    return; // Interrompe a função se o usuário clicar em "Cancelar"
+    return;
   }
-  // 👆 FIM DA MENSAGEM 👆
 
   const novaQtd = qtdAtual - 1;
   await updateDoc(doc(db, "pecas", id), { quantidade: novaQtd });
@@ -409,73 +420,3 @@ window.retirar = async (id, qtdAtual, nomePeca) => {
   carregarHistorico();
   
   alert("Peça retirada com sucesso!");
-};
-
-// 🔥 EXCLUIR PEÇA
-window.excluirPeca = async (id, nomePeca) => {
-  const confirmacao = confirm(`Tem certeza que deseja apagar permanentemente a peça [${nomePeca}]?`);
-  if (!confirmacao) return;
-
-  const usuarioAtual = auth.currentUser;
-
-  try {
-    await deleteDoc(doc(db, "pecas", id));
-
-    await addDoc(collection(db, "historico"), {
-      acao: "exclusao",
-      peca: nomePeca,
-      usuario: usuarioAtual ? usuarioAtual.email : "Admin",
-      data: new Date().toLocaleString(),
-      timestamp: new Date()
-    });
-
-    alert("Peça removida com sucesso!");
-    carregarPecas();
-    carregarHistorico();
-  } catch (erro) {
-    alert("Erro ao excluir peça.");
-  }
-};
-
-// 🔥 MOSTRAR / ESCONDER HISTÓRICO
-if (btnToggleHistorico) {
-  btnToggleHistorico.onclick = () => {
-    historicoArea.style.display = (historicoArea.style.display === "none" || historicoArea.style.display === "") ? "block" : "none";
-  };
-}
-
-// 🔥 CARREGAR HISTÓRICO
-async function carregarHistorico(emailFiltro = "") {
-  if (!historicoLista) return;
-  historicoLista.innerHTML = "";
-
-  const querySnapshot = await getDocs(collection(db, "historico"));
-
-  const itens = [];
-  querySnapshot.forEach(docItem => itens.push(docItem.data()));
-  itens.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-
-  itens.forEach((item) => {
-    const emailUsuario = item.usuario || "Desconhecido";
-    const nomeDaPeca = item.peca || "Não identificada";
-    const acaoTexto = item.acao === "exclusao" ? "EXCLUIU permanentemente" : "retirou";
-
-    if (emailFiltro && !emailUsuario.toLowerCase().includes(emailFiltro.toLowerCase())) return;
-
-    const div = document.createElement("div");
-    div.style.padding = "8px 0";
-    div.style.borderBottom = "1px solid #334155";
-    div.style.color = item.acao === "exclusao" ? "#f87171" : "#cbd5e1";
-    
-    div.innerText = `${emailUsuario} ${acaoTexto} [${nomeDaPeca}] em ${item.data}`;
-
-    historicoLista.appendChild(div);
-  });
-}
-
-// 🔥 FILTRAR HISTÓRICO
-if (btnFiltrar) {
-  btnFiltrar.onclick = () => {
-    carregarHistorico(filtroUsuario.value.trim());
-  };
-}
