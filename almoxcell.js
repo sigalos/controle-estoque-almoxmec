@@ -363,6 +363,13 @@ window.retirar = async (id, qtdAtual, nomePeca) => {
   const usuarioAtual = auth.currentUser;
   if (!usuarioAtual) return alert("Você precisa estar logado.");
 
+  // 👇 MENSAGEM DE CONFIRMAÇÃO PARA TODOS OS USUÁRIOS 👇
+  const confirmacao = confirm(`Deseja realmente retirar 1 unidade da peça [${nomePeca}]?`);
+  if (!confirmacao) {
+    return; // Interrompe a função se o usuário clicar em "Cancelar"
+  }
+  // 👆 FIM DA MENSAGEM 👆
+
   const novaQtd = qtdAtual - 1;
   await updateDoc(doc(db, "pecas", id), { quantidade: novaQtd });
 
@@ -376,6 +383,8 @@ window.retirar = async (id, qtdAtual, nomePeca) => {
 
   carregarPecas();
   carregarHistorico();
+  
+  alert("Peça retirada com sucesso!");
 };
 
 // 🔥 EXCLUIR PEÇA
