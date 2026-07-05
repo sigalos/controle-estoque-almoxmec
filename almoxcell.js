@@ -341,20 +341,44 @@ buscaPeca.oninput = () => {
   renderizarPecasNaTela(pecasFiltradas);
 };
 
-// 🔥 ZOOM DA IMAGEM
+// 🔥 ZOOM DA IMAGEM E CONTROLE DO BOTÃO VOLTAR
 window.ampliarImagem = (src) => {
   const modal = document.getElementById("imagemModal");
   const imagemAmpliada = document.getElementById("imagemAmpliada");
+  
   if (modal && imagemAmpliada) {
     modal.style.display = "block";
     imagemAmpliada.src = src;
+    
+    // Adiciona um estado (página falsa) no histórico do celular
+    window.history.pushState({ modalAberto: true }, "", "#zoom");
   }
 };
 
+// Quando o usuário fecha no "X" da tela
 window.fecharModal = () => {
   const modal = document.getElementById("imagemModal");
-  if (modal) modal.style.display = "none";
+  
+  if (modal && modal.style.display === "block") {
+    modal.style.display = "none";
+    
+    // Se a URL ainda tiver o "#zoom", voltamos 1 passo no histórico 
+    // para limpar a "página falsa" e manter tudo organizado
+    if (window.location.hash === "#zoom") {
+      window.history.back();
+    }
+  }
 };
+
+// 🔙 INTERCEPTA O BOTÃO "VOLTAR" FÍSICO DO CELULAR
+window.addEventListener("popstate", (event) => {
+  const modal = document.getElementById("imagemModal");
+  
+  // Se o botão de voltar for pressionado e o modal estiver aberto, nós o fechamos
+  if (modal && modal.style.display === "block") {
+    modal.style.display = "none";
+  }
+});
 
 // 🔥 RETIRAR PEÇA
 window.retirar = async (id, qtdAtual, nomePeca) => {
