@@ -420,3 +420,4 @@ window.retirar = async (id, qtdAtual, nomePeca) => {
   carregarHistorico();
   
   alert("Peça retirada com sucesso!");
+}
