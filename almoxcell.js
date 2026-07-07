@@ -221,39 +221,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// 🔥 FUNÇÃO AUXILIAR DE COMPRESSÃO DE IMAGEM
-async function comprimirImagem(file, maxWidth = 800, quality = 0.75) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-
-        // Calcula proporção
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width;
-          width = maxWidth;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob((blob) => {
-          // Retorna um novo objeto File
-          resolve(new File([blob], file.name, { type: 'image/jpeg' }));
-        }, 'image/jpeg', quality);
-      };
-    };
-  });
-}
-
 // 🔥 SELEÇÃO PARA MODO DE EDIÇÃO
 window.editarPeca = (id) => {
   const pecaSelecionada = todasAsPecas.find(p => p.id === id);
@@ -271,28 +238,24 @@ window.editarPeca = (id) => {
   btnSalvarPeca.style.background = "#22c55e"; 
 };
 
-// 🔥 SALVAR OU ATUALIZAR PEÇA (ATUALIZADO PARA COMPRESSÃO)
+// 🔥 SALVAR OU ATUALIZAR PEÇA (ATUALIZADO PARA STORAGE)
 btnSalvarPeca.onclick = async () => {
   const nome = nomePeca.value.trim();
   const quantitative = Number(quantidadePeca.value);
   const local = localPeca.value.trim() || "Não Informado";
-  let file = fotoPeca.files[0]; // Agora é uma variável let para poder ser reatribuída
+  const file = fotoPeca.files[0];
 
   if (!nome || !quantitative) return alert("Preencha o nome e a quantidade!");
 
   const textoOriginalBotao = btnSalvarPeca.innerText;
-  btnSalvarPeca.innerText = "⏳ Processando imagem...";
+  btnSalvarPeca.innerText = "⏳ Salvando...";
   btnSalvarPeca.disabled = true;
 
   try {
     let urlImagem = "";
     
-    // Upload da imagem com compressão
+    // Upload da imagem para o Firebase Storage
     if (file) {
-      // Chama a função de compressão antes do upload
-      file = await comprimirImagem(file);
-      
-      btnSalvarPeca.innerText = "⏳ Enviando...";
       const nomeArquivo = Date.now() + "_" + file.name;
       const referenciaStorage = ref(storage, "pecas/" + nomeArquivo);
       
