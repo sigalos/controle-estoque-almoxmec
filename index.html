@@ -24,6 +24,44 @@
           });
       }
     </script>
+    
+    <style>
+      @keyframes piscarAlerta {
+        0% { background-color: #ef4444; box-shadow: 0 0 5px #ef4444; }
+        50% { background-color: #f59e0b; box-shadow: 0 0 15px #f59e0b; }
+        100% { background-color: #ef4444; box-shadow: 0 0 5px #ef4444; }
+      }
+      .btn-alerta-piscante {
+        animation: piscarAlerta 1.5s infinite;
+        color: #ffffff !important;
+        font-weight: bold !important;
+      }
+      .tabela-reposicao {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        background: #1e2d4a;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .tabela-reposicao th, .tabela-reposicao td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #2e3d5a;
+      }
+      .tabela-reposicao th {
+        background: #0f1e36;
+        color: #f59e0b;
+      }
+      .status-critico {
+        background: #ef4444;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: bold;
+      }
+    </style>
   </head>
   <body>
     <div class="container" id="loginTela">
@@ -35,97 +73,70 @@
 
         <div id="formLogin" class="auth-form">
           <h2>🔐 Acessar Conta</h2>
-          <input
-            type="email"
-            id="email"
-            placeholder="E-mail"
-            autocomplete="email"
-          />
-
-          <div class="senha-container">
-            <input type="password" id="senha" placeholder="Senha" />
-            <button type="button" class="btn-olho" id="toggleSenhaLogin">
-              👁️
-            </button>
+          <input type="email" id="email" placeholder="Seu e-mail corporativo" />
+          <div style="position: relative;">
+            <input type="password" id="senha" placeholder="Sua senha" />
+            <span id="toggleSenhaLogin" style="position: absolute; right: 10px; top: 12px; cursor: pointer;">👁️</span>
           </div>
-
-          <button id="btnLogin" class="btn-principal">Entrar</button>
+          <button id="btnLogin" class="btn-principal">Entrar no Sistema</button>
         </div>
 
-        <div id="formCadastro" class="auth-form" style="display: none">
-          <h2>📝 Criar Conta</h2>
-          <input
-            type="email"
-            id="cadEmail"
-            placeholder="Digite seu melhor e-mail"
-            autocomplete="email"
-          />
-
-          <div class="senha-container">
-            <input
-              type="password"
-              id="cadSenha"
-              placeholder="Crie uma senha (mín. 6 caracteres)"
-            />
-            <button type="button" class="btn-olho" id="toggleSenhaCad">
-              👁️
-            </button>
+        <div id="formCadastro" class="auth-form" style="display: none;">
+          <h2>📝 Criar Nova Conta</h2>
+          <input type="email" id="cadEmail" placeholder="E-mail do colaborador" />
+          <div style="position: relative;">
+            <input type="password" id="cadSenha" placeholder="Senha (mínimo 6 dígitos)" />
+            <span id="toggleSenhaCad" style="position: absolute; right: 10px; top: 12px; cursor: pointer;">👁️</span>
           </div>
-
-          <input
-            type="password"
-            id="cadToken"
-            placeholder="Chave de Acesso da Oficina"
-          />
-          <button id="btnCadastrar" class="btn-principal">
-            Criar Minha Conta
-          </button>
+          <input type="password" id="cadToken" placeholder="Chave de Acesso (Token Oficina)" />
+          <button id="btnCadastrar" class="btn-principal" style="background: #f59e0b; color: #0f1e36;">Cadastrar Funcionário</button>
         </div>
 
-        <p id="erro" class="msg-feedback"></p>
+        <p id="erro" style="color: #ef4444; text-align: center; margin-top: 15px; font-weight: 600;"></p>
       </div>
     </div>
 
-    <div class="container" id="sistemaTela" style="display: none">
-      <header>
-        <h2>📦 Almoxcell</h2>
-        <button
-          id="btnLogout"
-          class="sair"
-          style="width: auto; padding: 8px 15px; margin: 0"
-        >
-          Sair
-        </button>
-      </header>
+    <div class="container" id="sistemaTela" style="display: none;">
+      <div class="topo-sistema">
+        <span>⚙️ Painel Almoxarifado: <strong id="usuarioLogado"></strong></span>
+        <button id="btnLogout" class="btn-sair">Sair</button>
+      </div>
 
-      <p id="usuarioLogado"></p>
-
-      <div id="areaAdmin" style="display: none">
-        <hr />
-        <h3>👑 Área Admin</h3>
+      <div id="areaAdmin" style="display: none;">
+        <h3>🛠️ Gerenciamento de Peças (Admin)</h3>
         <input type="file" id="fotoPeca" />
         <input type="text" id="nomePeca" placeholder="Nome da peça" />
-        <input
-          type="number"
-          id="quantidadePeca"
-          placeholder="Quantidade"
-          min="1"
-        />
-        <input
-          type="text"
-          id="localPeca"
-          placeholder="Local de Armazenamento (ex: Prateleira A1)"
-        />
+        <input type="number" id="quantidadePeca" placeholder="Quantidade em Estoque" min="0" />
+        <input type="number" id="estoqueMinimoPeca" placeholder="Estoque Mínimo (Aviso de Recompra)" min="0" />
+        <input type="text" id="localPeca" placeholder="Local de Armazenamento (ex: Prateleira A1)" />
 
         <button id="btnSalvarPeca" class="btn-principal">Salvar peça</button>
-        <button id="btnToggleHistorico" style="background: #3b82f6">
-          📊 Ver Histórico
-        </button>
+        
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button id="btnToggleHistorico" style="background: #3b82f6; flex: 1;">📊 Ver Histórico</button>
+          <button id="btnToggleReposicao" style="background: #64748b; flex: 1; display: none;">⚠️ Reposição</button>
+        </div>
+      </div>
+
+      <div id="reposicaoArea" style="display: none; background: #1e2d4a; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #ef4444;">
+        <h3 style="color: #ef4444; margin-top: 0;">📋 Peças Aguardando Reposição</h3>
+        <p style="font-size: 13px; color: #cbd5e1;">As seguintes peças atingiram ou estão abaixo do estoque mínimo operacional tolerado:</p>
+        <div id="reposicaoLista"></div>
+      </div>
+
+      <div id="historicoArea" style="display: none">
+        <hr />
+        <h3>📊 Histórico de Atividades</h3>
+        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+          <input type="text" id="filtroUsuario" placeholder="Filtrar por e-mail" style="margin-bottom:0;" />
+          <button id="btnFiltrar" style="background: #64748b; width: auto; padding: 0 20px;">Filtrar</button>
+        </div>
+        <div id="historicoLista"></div>
       </div>
 
       <hr />
 
-      <h3>📋 Lista de peças</h3>
+      <h3>📋 Consultar Estoque</h3>
       <div class="busca-container">
         <input
           type="text"
@@ -136,25 +147,13 @@
       </div>
 
       <div id="listaPecas"></div>
-
-      <div id="historicoArea" style="display: none">
-        <hr />
-        <h3>📊 Histórico</h3>
-        <input
-          type="text"
-          id="filtroUsuario"
-          placeholder="Filtrar por e-mail"
-        />
-        <button id="btnFiltrar" style="background: #64748b">Filtrar</button>
-        <div id="historicoLista"></div>
-      </div>
     </div>
 
     <div id="imagemModal" class="modal" onclick="window.fecharModal()">
-      <span class="fechar-modal">&times;</span>
-      <img class="modal-conteudo" id="imagemAmpliada" />
+      <span class="fechar-modal" onclick="window.fecharModal()">&times;</span>
+      <img class="conteudo-modal" id="imagemAmpliada" alt="Visualização Ampliada" />
     </div>
 
-    <script type="module" src="almoxcell.js?v=1"></script>
+    <script type="module" src="./almoxcell.js"></script>
   </body>
 </html>

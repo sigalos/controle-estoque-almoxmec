@@ -68,6 +68,7 @@ const toggleSenhaCad = document.getElementById("toggleSenhaCad");
 // ELEMENTOS DO SISTEMA
 const nomePeca = document.getElementById("nomePeca");
 const quantitativePeca = document.getElementById("quantidadePeca");
+const estoqueMinimoPeca = document.getElementById("estoqueMinimoPeca"); // Novo
 const localPeca = document.getElementById("localPeca");
 const fotoPeca = document.getElementById("fotoPeca");
 const btnSalvarPeca = document.getElementById("btnSalvarPeca");
@@ -79,6 +80,11 @@ const areaAdmin = document.getElementById("areaAdmin");
 const btnToggleHistorico = document.getElementById("btnToggleHistorico");
 const btnFiltrar = document.getElementById("btnFiltrar");
 const filtroUsuario = document.getElementById("filtroUsuario");
+
+// NOVOS ELEMENTOS DO PAINEL DE REPOSIÇÃO
+const btnToggleReposicao = document.getElementById("btnToggleReposicao");
+const reposicaoArea = document.getElementById("reposicaoArea");
+const reposicaoLista = document.getElementById("reposicaoLista");
 
 // 👁️ LOGICA PARA MOSTRAR/ESCONDER A SENHA (LOGIN)
 toggleSenhaLogin.onclick = () => {
@@ -195,6 +201,7 @@ onAuthStateChanged(auth, async (user) => {
     if (docSnap.exists() && docSnap.data().tipo === "admin") {
       areaAdmin.style.display = "block";
       ehAdminGlobal = true;
+      verificarPecasParaReposicao(); // Varre o banco para ver se há itens em falta
     } else {
       areaAdmin.style.display = "none";
       ehAdminGlobal = false;
@@ -214,10 +221,12 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById("cadToken").value = "";
     erro.innerText = "";
     erro.style.color = "#ef4444";
+    btnToggleReposicao.style.display = "none";
+    reposicaoArea.style.display = "none";
   }
 });
 
-// 🛠️ FUNÇÃO AUXILIAR: COMPRIME E CONVERTE A FOTO DO CELULAR PARA TEXTO LEVE (BASE64)
+// 🛠️ FUNÇÃO AUXILIAR: COMPRIME E CONVERTE A FOTO DO CELULAR PARA BASE64
 function comprimirEConverterParaBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -260,6 +269,7 @@ window.editarPeca = async (id) => {
     
     nomePeca.value = pecaSelecionada.nome;
     quantitativePeca.value = pecaSelecionada.quantidade;
+    estoqueMinimoPeca.value = pecaSelecionada.estoqueMinimo || 0; // Preenche estoque mínimo
     localPeca.value = pecaSelecionada.local === "Não Informado" ? "" : pecaSelecionada.local;
     
     areaAdmin.scrollIntoView({ behavior: 'smooth' });
@@ -271,14 +281,15 @@ window.editarPeca = async (id) => {
   }
 };
 
-// 🔥 SALVAR OU ATUALIZAR PEÇA (USANDO IMAGEM COMPRIMIDA BASE64)
+// 🔥 SALVAR OU ATUALIZAR PEÇA
 btnSalvarPeca.onclick = async () => {
   const nome = nomePeca.value.trim();
   const quantitative = Number(quantitativePeca.value);
+  const estoqueMin = Number(estoqueMinimoPeca.value) || 0; // Lê estoque mínimo
   const local = localPeca.value.trim() || "Não Informado";
   const file = fotoPeca.files[0];
 
-  if (!nome || !quantitative) return alert("Preencha o nome e a quantidade!");
+  if (!nome || quantitative < 0) return alert("Preencha o nome e uma quantidade válida!");
 
   btnSalvarPeca.innerText = "⏳ Salvando...";
   btnSalvarPeca.disabled = true;
@@ -290,31 +301,35 @@ btnSalvarPeca.onclick = async () => {
       urlImagem = await comprimirEConverterParaBase64(file);
     }
 
-    if (idPecaSendoEditada) {
-      const dadosAtualizados = { nome, quantidade: quantitative, local };
-      if (urlImagem) dadosAtualizados.imagem = urlImagem;
+    const dadosPeca = { 
+      nome, 
+      quantidade: quantitative, 
+      estoqueMinimo: estoqueMin, 
+      local 
+    };
 
-      await updateDoc(doc(db, "pecas", idPecaSendoEditada), dadosAtualizados);
+    if (idPecaSendoEditada) {
+      if (urlImagem) dadosPeca.imagem = urlImagem;
+
+      await updateDoc(doc(db, "pecas", idPecaSendoEditada), dadosPeca);
       alert("Peça atualizada com sucesso!");
       
       idPecaSendoEditada = null;
       btnSalvarPeca.style.background = ""; 
     } else {
-      await addDoc(collection(db, "pecas"), {
-        nome,
-        quantidade: quantitative,
-        local,
-        imagem: urlImagem 
-      });
+      if (urlImagem) dadosPeca.imagem = urlImagem;
+      await addDoc(collection(db, "pecas"), dadosPeca);
       alert("Nova peça adicionada com sucesso!");
     }
 
     nomePeca.value = "";
     quantitativePeca.value = "";
+    estoqueMinimoPeca.value = "";
     localPeca.value = "";
     fotoPeca.value = "";
     
     executarBuscaNoBanco(buscaPeca.value.trim());
+    verificarPecasParaReposicao(); // Atualiza painel de compras automático
 
   } catch (erro) {
     console.error(erro);
@@ -325,14 +340,13 @@ btnSalvarPeca.onclick = async () => {
   }
 };
 
-// 🔍 FUNÇÃO DE BUSCA LETRA POR LETRA ECONÔMICA (CORRIGIDA DEFINITIVAMENTE)
+// 🔍 FUNÇÃO DE BUSCA LETRA POR LETRA ECONÔMICA
 async function executarBuscaNoBanco(termo) {
   if (!termo || typeof termo !== "string") {
     listaPecas.innerHTML = "<p style='color:#94a3b8; text-align:center; margin-top:20px;'>🔍 Digite o nome da peça para pesquisar no estoque...</p>";
     return;
   }
 
-  // Corrigido o espaço invisível na variável!
   const termoFormatado = termo.charAt(0).toUpperCase() + termo.slice(1);
 
   try {
@@ -384,13 +398,18 @@ function renderizarPecasNaTela(listaFiltrada) {
     const div = document.createElement("div");
     div.className = "peca";
     const localizacao = peca.local || "Não informado";
+    const estMinimo = peca.estoqueMinimo || 0;
+    
+    // Alerta visual discreto se a peça já estiver no vermelho na busca geral
+    const estaNoVermelho = peca.quantidade <= estMinimo;
+    const tagQtdCor = estaNoVermelho ? "background:#ef4444;" : "";
 
     div.innerHTML = `
       <h4>${peca.nome}</h4>
-      <div class="qtd-tag">Qtd: ${peca.quantidade}</div>
+      <div class="qtd-tag" style="${tagQtdCor}">Qtd: ${peca.quantidade} ${estaNoVermelho ? '⚠️' : ''}</div>
       <div class="local-tag">📍 ${localizacao}</div>
       ${peca.imagem ? `<img src="${peca.imagem}" width="100" onclick="window.ampliarImagem('${peca.imagem}')">` : ""}
-      <button class="btn-principal" style="margin-top:12px;" onclick="window.retirar('${peca.id}', ${peca.quantidade}, '${peca.nome}')">Retirar</button>
+      <button class="btn-principal" style="margin-top:12px;" onclick="window.retirar('${peca.id}', ${peca.quantidade}, '${peca.nome}', ${estMinimo})">Retirar</button>
       ${ehAdminGlobal ? `
         <div class="admin-actions">
           <button class="btn-editar" onclick="window.editarPeca('${peca.id}')">✏️ Editar</button>
@@ -432,9 +451,9 @@ window.addEventListener("popstate", (event) => {
   }
 });
 
-// 🔥 RETIRAR PEÇA
-window.retirar = async (id, qtdAtual, nomePeca) => {
-  if (qtdAtual <= 0) return alert("Sem estoque");
+// 🔥 RETIRAR PEÇA (ATUALIZADO COM SEU ALERTA PERSONALIZADO DA PLANILHA)
+window.retirar = async (id, qtdAtual, nomePeca, limiteMinimo) => {
+  if (qtdAtual <= 0) return alert("Sem estoque disponível para esta peça.");
 
   const usuarioAtual = auth.currentUser;
   if (!usuarioAtual) return alert("Você precisa estar logado.");
@@ -453,10 +472,17 @@ window.retirar = async (id, qtdAtual, nomePeca) => {
     timestamp: new Date()
   });
 
+  // Executa as atualizações de tela
   executarBuscaNoBanco(buscaPeca.value.trim());
   carregarHistorico();
-  
-  alert("Peça retirada com sucesso!");
+  verificarPecasParaReposicao();
+
+  // 🔴 SEU ALERTA PERSONALIZADO SOLICITADO (OPÇÃO 2)
+  if (novaQtd <= limiteMinimo) {
+    alert(`⚠️ ATENÇÃO: LIMITE CRÍTICO ATINGIDO!\n\nPor favor, faça um pedido de mais peças na planilha de pedidos.`);
+  } else {
+    alert("Peça retirada com sucesso!");
+  }
 };
 
 // ❌ EXCLUIR PEÇA
@@ -468,13 +494,14 @@ window.excluirPeca = async (id, nomePeca) => {
     await deleteDoc(doc(db, "pecas", id));
     alert("Peça removida com sucesso.");
     executarBuscaNoBanco(buscaPeca.value.trim());
+    verificarPecasParaReposicao();
   } catch (erro) {
     console.error(erro);
     alert("Erro ao remover a peça.");
   }
 };
 
-// 📊 🔥 HISTÓRICO CORRIGIDO (MÁXIMO 10 ITENS)
+// 📊 HISTÓRICO CORRIGIDO (MÁXIMO 10 ITENS)
 async function carregarHistorico() {
   try {
     const q = query(collection(db, "historico"), orderBy("timestamp", "desc"), limit(10));
@@ -505,6 +532,63 @@ async function carregarHistorico() {
   }
 }
 
+// 🔴 FUNÇÃO: VARRE O BANCO EM BUSCA DE ITENS NO VERMELHO E GERENCIA O BOTÃO PISCANTE
+async function verificarPecasParaReposicao() {
+  if (!ehAdminGlobal) return;
+
+  try {
+    const querySnapshot = await getDocs(collection(db, "pecas"));
+    let tabelaHtml = `
+      <table class="tabela-reposicao">
+        <thead>
+          <tr>
+            <th>Peça</th>
+            <th>Qtd Atual</th>
+            <th>Mínimo</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    let possuiItensCriticos = false;
+
+    querySnapshot.forEach((docItem) => {
+      const peca = docItem.data();
+      const estMinimo = peca.estoqueMinimo || 0;
+      
+      if (peca.quantidade <= estMinimo) {
+        possuiItensCriticos = true;
+        tabelaHtml += `
+          <tr>
+            <td><strong>${peca.nome}</strong></td>
+            <td style="color:#ef4444; font-weight:bold;">${peca.quantidade} un</td>
+            <td>${estMinimo} un</td>
+            <td><span class="status-critico">RECOMPRAR</span></td>
+          </tr>
+        `;
+      }
+    });
+
+    tabelaHtml += `</tbody></table>`;
+
+    if (possuiItensCriticos) {
+      btnToggleReposicao.style.display = "block";
+      btnToggleReposicao.classList.add("btn-alerta-piscante");
+      btnToggleReposicao.innerText = "⚠️ Itens Críticos!";
+      reposicaoLista.innerHTML = tabelaHtml;
+    } else {
+      btnToggleReposicao.style.display = "none";
+      btnToggleReposicao.classList.remove("btn-alerta-piscante");
+      reposicaoArea.style.display = "none";
+      reposicaoLista.innerHTML = "";
+    }
+
+  } catch (err) {
+    console.error("Erro ao processar reposição: ", err);
+  }
+}
+
 // 📊 CONTROLADOR DO HISTÓRICO
 btnToggleHistorico.onclick = () => {
   if (historicoArea.style.display === "none") {
@@ -514,6 +598,15 @@ btnToggleHistorico.onclick = () => {
   } else {
     historicoArea.style.display = "none";
     btnToggleHistorico.innerText = "📊 Ver Histórico";
+  }
+};
+
+// 📊 CONTROLADOR DO PAINEL DE REPOSIÇÃO (ADMIN)
+btnToggleReposicao.onclick = () => {
+  if (reposicaoArea.style.display === "none") {
+    reposicaoArea.style.display = "block";
+  } else {
+    reposicaoArea.style.display = "none";
   }
 };
 
