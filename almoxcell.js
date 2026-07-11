@@ -17,7 +17,10 @@ import {
   getDoc,
   updateDoc,
   setDoc,
-  deleteDoc
+  deleteDoc,
+  query,      // 👈 ADICIONADO PARA LIMITAR CONSULTAS
+  limit,      // 👈 ADICIONADO PARA LIMITAR CONSULTAS
+  orderBy     // 👈 ADICIONADO PARA ORDENAR POR DATA
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // 👇 NOVA IMPORTAÇÃO DO STORAGE 👇
@@ -420,4 +423,78 @@ window.retirar = async (id, qtdAtual, nomePeca) => {
   carregarHistorico();
   
   alert("Peça retirada com sucesso!");
+};
+
+// ❌ EXCLUIR PEÇA (MELHORIA: ADICIONADA FUNÇÃO QUE FALTAVA)
+window.excluirPeca = async (id, nomePeca) => {
+  const confirmacao = confirm(`Tem certeza que deseja apagar permanentemente a peça [${nomePeca}]?`);
+  if (!confirmacao) return;
+
+  try {
+    await deleteDoc(doc(db, "pecas", id));
+    alert("Peça removida com sucesso.");
+    carregarPecas();
+  } catch (erro) {
+    console.error(erro);
+    alert("Erro ao remover a peça.");
+  }
+};
+
+// 📊 🔥 NOVA FUNÇÃO: CARREGAR HISTÓRICO (LIMITADO EM 10 PARA ECONOMIA DO PLANO)
+async function carregarHistorico() {
+  try {
+    // Busca apenas as últimas 10 modificações ordenadas pelo timestamp descrescente
+    const q = query(collection(db, "historico"), orderBy("timestamp", "desc"), limit(10));
+    const querySnapshot = await getDocs(q);
+    
+    let conteudoHtml = "";
+    
+    if (querySnapshot.empty) {
+      historicoLista.innerHTML = "<p style='color:#94a3b8; text-align:center;'>Nenhuma atividade recente.</p>";
+      return;
+    }
+
+    querySnapshot.forEach((docItem) => {
+      const dados = docItem.data();
+      conteudoHtml += `
+        <div style="background:#0f1e36; padding:12px; margin-bottom:8px; border-radius:8px; border-left:4px solid #f59e0b;">
+          <p style="margin:0 0 4px 0; font-size:14px;"><strong>Peça:</strong> ${dados.peca}</p>
+          <p style="margin:0 0 4px 0; font-size:13px; color:#cbd5e1;"><strong>Quem:</strong> ${dados.usuario}</p>
+          <p style="margin:0; font-size:11px; color:#94a3b8;">📅 ${dados.data}</p>
+        </div>
+      `;
+    });
+    
+    historicoLista.innerHTML = conteudoHtml;
+  } catch (erro) {
+    console.error("Erro ao carregar histórico: ", erro);
+    historicoLista.innerHTML = "<p style='color:#ef4444; font-size:12px;'>Precisa criar o índice no Firebase para ordenar.</p>";
+  }
 }
+
+// 📊 CONTROLADOR DO BOTÃO VISUALIZAR HISTÓRICO (MOSTRAR / ESCONDER)
+btnToggleHistorico.onclick = () => {
+  if (historicoArea.style.display === "none") {
+    historicoArea.style.display = "block";
+    btnToggleHistorico.innerText = "🙈 Esconder Histórico";
+    carregarHistorico();
+  } else {
+    historicoArea.style.display = "none";
+    btnToggleHistorico.innerText = "📊 Ver Histórico";
+  }
+};
+
+// 🔍 FILTRAR HISTÓRICO POR E-MAIL EM TEMPO REAL (SEM NOVAS REQUISIÇÕES AO BANCO)
+btnFiltrar.onclick = () => {
+  const emailFiltro = filtroUsuario.value.toLowerCase().trim();
+  const blocos = historicoLista.getElementsByTagName("div");
+
+  for (let bloco of blocos) {
+    const textoBloco = bloco.innerText.toLowerCase();
+    if (textoBloco.includes(emailFiltro)) {
+      bloco.style.display = "block";
+    } else {
+      bloco.style.display = "none";
+    }
+  }
+};
