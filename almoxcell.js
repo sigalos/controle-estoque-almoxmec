@@ -340,34 +340,47 @@ btnSalvarPeca.onclick = async () => {
   }
 };
 
-// 🔍 FUNÇÃO DE BUSCA LETRA POR LETRA ECONÔMICA
+// 🔍 FUNÇÃO AUXILIAR PARA NORMALIZAR TEXTO (Remove acentos e deixa minúsculo)
+function normalizarTexto(texto) {
+  if (!texto) return "";
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+// 🔍 FUNÇÃO DE BUSCA LETRA POR LETRA ECONÔMICA (CORRIGIDA)
 async function executarBuscaNoBanco(termo) {
-  if (!termo || typeof termo !== "string") {
+  if (!termo || typeof termo !== "string" || termo.trim() === "") {
     listaPecas.innerHTML = "<p style='color:#94a3b8; text-align:center; margin-top:20px;'>🔍 Digite o nome da peça para pesquisar no estoque...</p>";
     return;
   }
 
-  const termoFormatado = termo.charAt(0).toUpperCase() + termo.slice(1);
+  // Passa o termo digitado pelo filtro (ex: "Vál" vira "val")
+  const termoFormatado = normalizarTexto(termo);
 
   try {
-    const q = query(
-      collection(db, "pecas"),
-      where("nome", ">=", termoFormatado),
-      where("nome", "<=", termoFormatado + "\uf8ff"),
-      limit(15)
-    );
-
+    const q = query(collection(db, "pecas")); 
     const querySnapshot = await getDocs(q);
     const pecasEncontradas = [];
 
     querySnapshot.forEach((docItem) => {
-      pecasEncontradas.push({
-        id: docItem.id,
-        ...docItem.data()
-      });
+      const peca = docItem.data();
+      
+      // Normaliza o nome da peça que veio do banco
+      const nomePecaNormalizado = normalizarTexto(peca.nome);
+
+      // 🔴 CORREÇÃO: Usamos startsWith para buscar apenas pelo início da palavra
+      if (nomePecaNormalizado.startsWith(termoFormatado)) {
+        pecasEncontradas.push({
+          id: docItem.id,
+          ...peca
+        });
+      }
     });
 
-    renderizarPecasNaTela(pecasEncontradas);
+    const pecasLimitadas = pecasEncontradas.slice(0, 15);
+    renderizarPecasNaTela(pecasLimitadas); 
 
   } catch (erro) {
     console.error("Erro na busca: ", erro);
